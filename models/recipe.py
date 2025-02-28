@@ -1,6 +1,7 @@
 from pydantic import BaseModel, HttpUrl
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Set
 from datetime import datetime
+from enum import Enum
 
 class Ingredient(BaseModel):
     item: str
@@ -23,24 +24,33 @@ class Metadata(BaseModel):
     rating: Optional[float] = None
     reviews_count: Optional[int] = 0
 
-from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime
+class RecipeCategory(str, Enum):
+    APERITIVOS = "Aperitivos"
+    TAPAS = "Tapas y Pinchos"
+    ENTRANTES = "Entrantes"
+    PRIMEROS = "Primeros"
+    SEGUNDOS = "Segundos"
+    GUARNICIONES = "Guarniciones"
+    POSTRES = "Postres"
 
 class RecipeBase(BaseModel):
     title: str
+    comment: str
     description: str
     ingredients: List[str]
     instructions: List[str]
     cooking_time: int
     servings: int
-    category: str
+    category: RecipeCategory
+    tags: Set[str]
+    image_path: Optional[str] = None
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
                     "title": "Champiñones al ajillo",
+                    "comment": "Receta de la abuela María",
                     "description": "Champiñones al ajillo",
                     "ingredients": [
                         "Dos bandejas de champiñones",
@@ -53,7 +63,8 @@ class RecipeBase(BaseModel):
                     ],
                     "cooking_time": 15,
                     "servings": 4,
-                    "category": "Primero"
+                    "category": "Primeros",
+                    "tags": ["Vegetariano", "Fácil", "Rápido"]
                 }
             ]
         }
