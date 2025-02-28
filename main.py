@@ -23,7 +23,8 @@ app.add_middleware(
 )
 
 # MongoDB connection
-MONGODB_URL = "mongodb://localhost:27017"
+# MONGODB_URL = "mongodb://localhost:27017"
+MONGODB_URL = "mongodb+srv://tervingo:mig.langar.inn@gagnagunnur.okrh1.mongodb.net/"
 client = AsyncIOMotorClient(MONGODB_URL)
 db = client.recetarium
 
