@@ -13,13 +13,16 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
-# Configura CORS
+# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # URL de tu frontend
+    allow_origins=[
+        "https://treskeidh.netlify.app",  # Tu dominio en Netlify
+        "http://localhost:3000",  # Para desarrollo local
+    ],
     allow_credentials=True,
-    allow_methods=["*"],  # Permite todos los métodos HTTP
-    allow_headers=["*"],  # Permite todas las cabeceras
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # MongoDB connection
