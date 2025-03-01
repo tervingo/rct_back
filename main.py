@@ -17,7 +17,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://treskeidh.netlify.app",  # Tu dominio en Netlify
+        "https://recetaria.netlify.app",  # Tu dominio en Netlify
         "http://localhost:3000",  # Para desarrollo local
     ],
     allow_credentials=True,
