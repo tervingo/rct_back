@@ -173,13 +173,32 @@ async def delete_tag(tag: str):
 @app.post("/upload-image/")
 async def upload_image(file: UploadFile = File(...)):
     try:
-        # Leer el contenido del archivo
+        # Validar el tipo de archivo
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(
+                status_code=400, 
+                detail="El archivo debe ser una imagen"
+            )
+        
         contents = await file.read()
         
-        # Subir a Cloudinary
-        upload_result = cloudinary.uploader.upload(contents)
+        # Subir a Cloudinary en la carpeta 'recipes'
+        upload_result = cloudinary.uploader.upload(
+            contents,
+            folder="recipes",  # Todas las imágenes irán a la carpeta 'recipes'
+            resource_type="auto",
+            # Opciones adicionales para optimización
+            transformation=[
+                {
+                    'width': 1200,  # Ancho máximo
+                    'crop': 'limit'  # Mantiene la proporción
+                }
+            ],
+            quality='auto:good',  # Optimización automática de calidad
+            fetch_format='auto'  # Mejor formato según el navegador
+        )
         
-        # Devolver la URL segura de la imagen
         return {"image_path": upload_result["secure_url"]}
     except Exception as e:
+        print(f"Error uploading image: {str(e)}")  # Para debugging
         raise HTTPException(status_code=500, detail=str(e))
