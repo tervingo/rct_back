@@ -10,6 +10,9 @@ import os
 from pathlib import Path
 import uuid
 from fastapi.staticfiles import StaticFiles
+import cloudinary
+import cloudinary.uploader
+from dotenv import load_dotenv
 
 app = FastAPI()
 
@@ -37,6 +40,14 @@ IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 # Montar el directorio de imágenes
 app.mount("/images", StaticFiles(directory="public/images"), name="images")
+
+# Configuración de Cloudinary (añade esto después de la configuración de FastAPI)
+load_dotenv()
+cloudinary.config(
+    cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key = os.getenv('CLOUDINARY_API_KEY'),
+    api_secret = os.getenv('CLOUDINARY_API_SECRET')
+)
 
 @app.post("/recipes/", response_model=Recipe)
 async def create_recipe(recipe: RecipeCreate):
@@ -162,16 +173,13 @@ async def delete_tag(tag: str):
 @app.post("/upload-image/")
 async def upload_image(file: UploadFile = File(...)):
     try:
-        # Generar un nombre único para el archivo
-        file_extension = file.filename.split(".")[-1]
-        unique_filename = f"{uuid.uuid4()}.{file_extension}"
-        file_path = IMAGES_DIR / unique_filename
-
-        # Guardar el archivo
-        with file_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        # Devolver la ruta relativa
-        return {"image_path": f"/images/recipes/{unique_filename}"}
+        # Leer el contenido del archivo
+        contents = await file.read()
+        
+        # Subir a Cloudinary
+        upload_result = cloudinary.uploader.upload(contents)
+        
+        # Devolver la URL segura de la imagen
+        return {"image_path": upload_result["secure_url"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
