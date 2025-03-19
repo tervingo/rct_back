@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
@@ -13,6 +13,8 @@ from fastapi.staticfiles import StaticFiles
 import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
+from fastapi.security import OAuth2PasswordRequestForm
+from auth import *
 
 app = FastAPI()
 
@@ -50,8 +52,39 @@ cloudinary.config(
     api_secret = os.getenv('CLOUDINARY_API_SECRET')
 )
 
+# Base de datos temporal de usuarios (cambiar por MongoDB después)
+fake_users_db = {
+    "admin": {
+        "username": "admin",
+        "full_name": "Administrator",
+        "email": "admin@example.com",
+        "hashed_password": get_password_hash("adminpassword"),
+        "disabled": False,
+    }
+}
+
+def get_user(username: str):
+    if username in fake_users_db:
+        user_dict = fake_users_db[username]
+        return UserInDB(**user_dict)
+    return None
+
+@app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = create_access_token(
+        data={"sub": user.username}
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
 @app.post("/recipes/", response_model=Recipe)
-async def create_recipe(recipe: RecipeCreate):
+async def create_recipe(recipe: RecipeCreate, current_user: User = Depends(get_current_user)):
     recipe_dict = recipe.dict()
     
     # Convertir el conjunto de tags en una lista
@@ -107,7 +140,7 @@ async def get_recipe(recipe_id: str):
     return Recipe(**recipe)
 
 @app.put("/recipes/{recipe_id}", response_model=Recipe)
-async def update_recipe(recipe_id: str, recipe: RecipeCreate):
+async def update_recipe(recipe_id: str, recipe: RecipeCreate, current_user: User = Depends(get_current_user)):
     # Convertir el modelo a diccionario
     recipe_dict = recipe.dict()
     
@@ -144,8 +177,8 @@ async def update_recipe(recipe_id: str, recipe: RecipeCreate):
     updated_recipe["id"] = str(updated_recipe.pop("_id"))
     return Recipe(**updated_recipe)
 
-@app.delete("/recipes/{recipe_id}")
-async def delete_recipe(recipe_id: str):
+@app.delete("/recipes/{recipe_id}", response_model=dict)
+async def delete_recipe(recipe_id: str, current_user: User = Depends(get_current_user)):
     result = await db.recetas.delete_one({"_id": ObjectId(recipe_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Recipe not found")
