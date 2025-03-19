@@ -20,7 +20,9 @@ from auth import (
     authenticate_user,
     create_access_token,
     get_current_active_user,
-    fake_users_db
+    get_current_user,
+    fake_users_db,
+    UserInDB
 )
 
 app = FastAPI()
@@ -58,12 +60,6 @@ cloudinary.config(
     api_key = os.getenv('CLOUDINARY_API_KEY'),
     api_secret = os.getenv('CLOUDINARY_API_SECRET')
 )
-
-def get_user(username: str):
-    if username in fake_users_db:
-        user_dict = fake_users_db[username]
-        return UserInDB(**user_dict)
-    return None
 
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
