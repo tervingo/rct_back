@@ -14,7 +14,14 @@ import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordRequestForm
-from auth import *
+from auth import (
+    Token,
+    User,
+    authenticate_user,
+    create_access_token,
+    get_current_active_user,
+    fake_users_db
+)
 
 app = FastAPI()
 
@@ -52,24 +59,13 @@ cloudinary.config(
     api_secret = os.getenv('CLOUDINARY_API_SECRET')
 )
 
-# Base de datos temporal de usuarios (cambiar por MongoDB después)
-fake_users_db = {
-    "admin": {
-        "username": "admin",
-        "full_name": "Administrator",
-        "email": "admin@example.com",
-        "hashed_password": get_password_hash("adminpassword"),
-        "disabled": False,
-    }
-}
-
 def get_user(username: str):
     if username in fake_users_db:
         user_dict = fake_users_db[username]
         return UserInDB(**user_dict)
     return None
 
-@app.post("/token")
+@app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user = authenticate_user(fake_users_db, form_data.username, form_data.password)
     if not user:
