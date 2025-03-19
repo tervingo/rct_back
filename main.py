@@ -69,7 +69,7 @@ def get_user(username: str):
         return UserInDB(**user_dict)
     return None
 
-@app.post("/token", response_model=Token)
+@app.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user = authenticate_user(fake_users_db, form_data.username, form_data.password)
     if not user:

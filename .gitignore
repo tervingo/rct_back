@@ -5,3 +5,4 @@ __pycache__
 *.pyw
 *.pyz
 .env
+test_auth.py
