@@ -5,9 +5,16 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
+import secrets
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # Configuración
-SECRET_KEY = "tu_clave_secreta_aqui"  # Cambiar esto en producción
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("No SECRET_KEY set in environment")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -63,3 +70,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     if user is None:
         raise credentials_exception
     return user
+
+fake_users_db = {
+    "admin": {
+        "username": "admin",
+        "full_name": "Administrator",
+        "email": "admin@example.com",
+        "hashed_password": get_password_hash("adminpassword"),
+        "disabled": False,
+    }
+}
