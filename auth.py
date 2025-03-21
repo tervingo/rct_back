@@ -68,17 +68,21 @@ async def get_user(username: str):
 async def authenticate_user(username: str, password: str):
     db = get_database()
     user_dict = await db["users"].find_one({"username": username})
+    print("MongoDB user data:", user_dict)  # Log para depuración
+    
     if not user_dict:
         return False
     if not verify_password(password, user_dict["hashed_password"]):
         return False
     
-    return UserInDB(
+    user = UserInDB(
         username=user_dict["username"],
         hashed_password=user_dict["hashed_password"],
         is_admin=user_dict.get("is_admin", False),
         disabled=user_dict.get("disabled", False)
     )
+    print("Created UserInDB object:", user.model_dump())  # Log para depuración
+    return user
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

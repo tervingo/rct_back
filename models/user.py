@@ -1,10 +1,10 @@
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class User(BaseModel):
     username: str
-    is_admin: bool = False
-    disabled: Optional[bool] = None
+    is_admin: bool = Field(default=False)
+    disabled: Optional[bool] = Field(default=False)
 
 class UserInDB(User):
     hashed_password: str
@@ -12,4 +12,4 @@ class UserInDB(User):
 class UserCreate(BaseModel):
     username: str
     password: str
-    is_admin: bool = False
+    is_admin: bool = Field(default=False)
