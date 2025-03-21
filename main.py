@@ -27,8 +27,9 @@ from auth import (
     delete_user,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
-from database import get_database
+from database import get_database, verify_connection
 from models.user import UserCreate
+import logging
 
 app = FastAPI()
 
@@ -47,7 +48,7 @@ app.add_middleware(
 
 # MongoDB connection
 # MONGODB_URL = "mongodb://localhost:27017"
-MONGODB_URL = "mongodb+srv://tervingo:mig.langar.inn@gagnagunnur.okrh1.mongodb.net/"
+MONGODB_URL = os.getenv("MONGODB_URL")
 client = AsyncIOMotorClient(MONGODB_URL)
 db = client.recetarium
 
@@ -65,6 +66,10 @@ cloudinary.config(
     api_key = os.getenv('CLOUDINARY_API_KEY'),
     api_secret = os.getenv('CLOUDINARY_API_SECRET')
 )
+
+@app.on_event("startup")
+async def startup_db_client():
+    await verify_connection()
 
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -262,16 +267,24 @@ async def remove_user(
 # Script para crear el primer usuario admin
 @app.post("/initial-setup")
 async def create_initial_admin():
-    db = get_database()
-    if await db.users.count_documents({}) > 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Setup has already been performed"
+    try:
+        db = get_database()
+        # Verificar si ya existen usuarios
+        count = await db.users.count_documents({})
+        if count > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Setup has already been performed"
+            )
+        
+        # Crear usuario admin
+        admin_user = UserCreate(
+            username="admin",
+            password="adminpassword",
+            is_admin=True
         )
-    
-    admin_user = UserCreate(
-        username="admin",
-        password="adminpassword",
-        is_admin=True
-    )
-    return await create_user(admin_user)
+        result = await create_user(admin_user)
+        return {"message": "Admin user created successfully", "user": result}
+    except Exception as e:
+        logger.error(f"Error in initial setup: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
