@@ -91,7 +91,7 @@ async def login_for_access_token(
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     token_data = {
         "sub": user_data["username"],
-        "is_admin": user_data.get("is_admin", False)
+        "is_admin": user_data["is_admin"]  # Usar el campo directamente
     }
     print("Token data:", token_data)  # Log para depuración
     
