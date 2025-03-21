@@ -10,3 +10,4 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 aiofiles==23.2.1
 cloudinary==1.36.0
+motor==3.3.2  # Cliente asíncrono de MongoDB para FastAPI
