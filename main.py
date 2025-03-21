@@ -83,11 +83,15 @@ async def login_for_access_token(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    # Convertir el objeto Pydantic a diccionario
+    user_data = user.model_dump()
+    
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={
-            "sub": user.username,
-            "is_admin": user.is_admin
+            "sub": user_data["username"],
+            "is_admin": user_data.get("is_admin", False)
         },
         expires_delta=access_token_expires
     )

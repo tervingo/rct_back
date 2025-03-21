@@ -1,20 +1,13 @@
-from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+from pydantic import BaseModel
 
-class UserBase(BaseModel):
+class User(BaseModel):
     username: str
-    disabled: bool | None = None
     is_admin: bool = False
+    disabled: Optional[bool] = None
 
-class User(UserBase):
-    pass
-
-class UserInDB(UserBase):
+class UserInDB(User):
     hashed_password: str
-
-    class Config:
-        from_attributes = True
 
 class UserCreate(BaseModel):
     username: str
