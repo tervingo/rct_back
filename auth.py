@@ -72,12 +72,15 @@ async def authenticate_user(username: str, password: str):
         return False
     if not verify_password(password, user_dict["hashed_password"]):
         return False
-    return UserInDB(
+    
+    # Asegúrate de que todos los campos necesarios estén presentes
+    user = UserInDB(
         username=user_dict["username"],
         hashed_password=user_dict["hashed_password"],
         disabled=user_dict.get("disabled", False),
         is_admin=user_dict.get("is_admin", False)
     )
+    return user
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -108,12 +111,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     if user_dict is None:
         raise credentials_exception
     
-    return UserInDB(
+    user = UserInDB(
         username=user_dict["username"],
         hashed_password=user_dict["hashed_password"],
         disabled=user_dict.get("disabled", False),
         is_admin=user_dict.get("is_admin", False)
     )
+    return user
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)):
     if current_user.disabled:
