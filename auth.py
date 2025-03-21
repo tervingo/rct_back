@@ -8,8 +8,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
 from bson import ObjectId
-from .models.user import User, UserCreate, UserInDB
-from .database import get_database
+from database import get_database
+from models.user import User, UserCreate, UserInDB
 import logging
 
 load_dotenv()

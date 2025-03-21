@@ -14,7 +14,7 @@ import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordRequestForm
-from .auth import (
+from auth import (
     Token,
     User,
     authenticate_user,
@@ -28,8 +28,8 @@ from .auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     get_password_hash
 )
-from .database import get_database, verify_connection
-from .models.user import UserCreate
+from database import get_database, verify_connection
+from models.user import UserCreate
 import logging
 
 app = FastAPI()
