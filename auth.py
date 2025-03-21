@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
 from bson import ObjectId
-from models.user import User, UserCreate
+from models.user import User, UserCreate, UserInDB
 from database import get_database
 import logging
 
@@ -66,7 +66,7 @@ async def get_user(username: str):
         return User(**user_dict)
 
 async def authenticate_user(username: str, password: str):
-    db = await get_database()
+    db = get_database()
     user_dict = await db["users"].find_one({"username": username})
     if not user_dict:
         return False
@@ -85,10 +85,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({
-        "exp": expire,
-        "is_admin": data.get("is_admin", False)
-    })
+    to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -105,10 +102,18 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = await get_user(username)
-    if user is None:
+    
+    db = get_database()
+    user_dict = await db["users"].find_one({"username": username})
+    if user_dict is None:
         raise credentials_exception
-    return user
+    
+    return UserInDB(
+        username=user_dict["username"],
+        hashed_password=user_dict["hashed_password"],
+        disabled=user_dict.get("disabled", False),
+        is_admin=user_dict.get("is_admin", False)
+    )
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)):
     if current_user.disabled:

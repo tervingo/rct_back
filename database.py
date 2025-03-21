@@ -1,25 +1,19 @@
-import motor.motor_asyncio
-from os import getenv
-from fastapi import HTTPException
+from motor.motor_asyncio import AsyncIOMotorClient
+import os
 import logging
+from fastapi import HTTPException
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Obtener la URL de conexión de las variables de entorno
-MONGODB_URL = getenv("MONGODB_URL")
-if not MONGODB_URL:
-    raise ValueError("No MONGODB_URL environment variable set")
-
-DATABASE_NAME = getenv("DATABASE_NAME", "recetarium")
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+DATABASE_NAME = os.getenv("DATABASE_NAME", "recetarium")
 
 try:
     # Crear el cliente de MongoDB
-    client = motor.motor_asyncio.AsyncIOMotorClient(
-        MONGODB_URL,
-        serverSelectionTimeoutMS=5000  # 5 segundos de timeout
-    )
+    client = AsyncIOMotorClient(MONGODB_URL)
     database = client[DATABASE_NAME]
     
     # Verificar la conexión
