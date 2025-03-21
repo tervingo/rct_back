@@ -7,6 +7,9 @@ from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
+from bson import ObjectId
+from models.user import User, UserCreate
+from database import get_database
 
 load_dotenv()
 
@@ -55,23 +58,27 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
-    return None
+async def get_user(username: str):
+    db = get_database()
+    user_dict = await db.users.find_one({"username": username})
+    if user_dict:
+        return User(**user_dict)
 
-def authenticate_user(fake_db, username: str, password: str):
-    user = get_user(fake_db, username)
-    if not user:
+async def authenticate_user(username: str, password: str):
+    db = get_database()
+    user_dict = await db.users.find_one({"username": username})
+    if not user_dict:
         return False
-    if not verify_password(password, user.hashed_password):
+    if not verify_password(password, user_dict["password"]):
         return False
-    return user
+    return User(**user_dict)
 
-def create_access_token(data: dict):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -87,10 +94,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
-    user = get_user(fake_users_db, username=token_data.username)
+    user = await get_user(username)
     if user is None:
         raise credentials_exception
     return user
@@ -99,3 +105,29 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+# Endpoints para gestión de usuarios
+async def create_user(user: UserCreate):
+    db = get_database()
+    # Verificar si el usuario ya existe
+    if await db.users.find_one({"username": user.username}):
+        raise HTTPException(
+            status_code=400,
+            detail="Username already registered"
+        )
+    
+    user_dict = user.dict()
+    user_dict["password"] = get_password_hash(user.password)
+    user_dict["created_at"] = datetime.utcnow()
+    
+    result = await db.users.insert_one(user_dict)
+    user_dict["id"] = str(result.inserted_id)
+    
+    return User(**user_dict)
+
+async def delete_user(username: str):
+    db = get_database()
+    result = await db.users.delete_one({"username": username})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"detail": "User deleted"}

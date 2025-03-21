@@ -22,8 +22,11 @@ from auth import (
     get_current_active_user,
     get_current_user,
     fake_users_db,
-    UserInDB
+    UserInDB,
+    create_user,
+    delete_user
 )
+from database import get_database
 
 app = FastAPI()
 
@@ -228,3 +231,45 @@ async def upload_image(file: UploadFile = File(...)):
     except Exception as e:
         print(f"Error uploading image: {str(e)}")  # Para debugging
         raise HTTPException(status_code=500, detail=str(e))
+
+# Endpoints de administración de usuarios
+@app.post("/users/", response_model=User)
+async def create_new_user(
+    user: UserCreate,
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough privileges"
+        )
+    return await create_user(user)
+
+@app.delete("/users/{username}")
+async def remove_user(
+    username: str,
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough privileges"
+        )
+    return await delete_user(username)
+
+# Script para crear el primer usuario admin
+@app.post("/initial-setup")
+async def create_initial_admin():
+    db = get_database()
+    if await db.users.count_documents({}) > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Setup has already been performed"
+        )
+    
+    admin_user = UserCreate(
+        username="admin",
+        password="adminpassword",
+        is_admin=True
+    )
+    return await create_user(admin_user)
