@@ -66,19 +66,18 @@ async def get_user(username: str):
         return User(**user_dict)
 
 async def authenticate_user(username: str, password: str):
-    try:
-        db = get_database()
-        user_dict = await db.users.find_one({"username": username})
-        
-        if not user_dict:
-            return False
-        if not verify_password(password, user_dict["password"]):
-            return False
-        
-        return User(**user_dict)
-    except Exception as e:
-        logger.error(f"Error in authentication: {e}")
+    db = await get_database()
+    user_dict = await db["users"].find_one({"username": username})
+    if not user_dict:
         return False
+    if not verify_password(password, user_dict["hashed_password"]):
+        return False
+    return UserInDB(
+        username=user_dict["username"],
+        hashed_password=user_dict["hashed_password"],
+        disabled=user_dict.get("disabled", False),
+        is_admin=user_dict.get("is_admin", False)
+    )
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

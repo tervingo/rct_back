@@ -25,7 +25,8 @@ from auth import (
     UserInDB,
     create_user,
     delete_user,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    get_password_hash
 )
 from database import get_database, verify_connection
 from models.user import UserCreate
@@ -86,7 +87,7 @@ async def login_for_access_token(
     access_token = create_access_token(
         data={
             "sub": user.username,
-            "is_admin": user.is_admin  # Incluir is_admin en los datos del token
+            "is_admin": user.is_admin
         },
         expires_delta=access_token_expires
     )
@@ -273,25 +274,24 @@ async def remove_user(
 
 # Script para crear el primer usuario admin
 @app.post("/initial-setup")
-async def create_initial_admin():
-    try:
-        db = get_database()
-        # Verificar si ya existen usuarios
-        count = await db.users.count_documents({})
-        if count > 0:
-            raise HTTPException(
-                status_code=400,
-                detail="Setup has already been performed"
-            )
-        
-        # Crear usuario admin
-        admin_user = UserCreate(
-            username="admin",
-            password="adminpassword",
-            is_admin=True
+async def initial_setup():
+    db = await get_database()
+    # Verificar si ya existe un usuario admin
+    admin_exists = await db["users"].find_one({"username": "admin"})
+    if admin_exists:
+        raise HTTPException(
+            status_code=400,
+            detail="Initial setup has already been performed"
         )
-        result = await create_user(admin_user)
-        return {"message": "Admin user created successfully", "user": result}
-    except Exception as e:
-        logger.error(f"Error in initial setup: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    
+    # Crear usuario admin
+    hashed_password = get_password_hash("adminpassword")
+    new_admin = {
+        "username": "admin",
+        "hashed_password": hashed_password,
+        "disabled": False,
+        "is_admin": True
+    }
+    
+    await db["users"].insert_one(new_admin)
+    return {"message": "Admin user created successfully"}
