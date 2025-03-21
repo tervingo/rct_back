@@ -10,6 +10,7 @@ import os
 from bson import ObjectId
 from models.user import User, UserCreate
 from database import get_database
+import logging
 
 load_dotenv()
 
@@ -65,13 +66,19 @@ async def get_user(username: str):
         return User(**user_dict)
 
 async def authenticate_user(username: str, password: str):
-    db = get_database()
-    user_dict = await db.users.find_one({"username": username})
-    if not user_dict:
+    try:
+        db = get_database()
+        user_dict = await db.users.find_one({"username": username})
+        
+        if not user_dict:
+            return False
+        if not verify_password(password, user_dict["password"]):
+            return False
+        
+        return User(**user_dict)
+    except Exception as e:
+        logger.error(f"Error in authentication: {e}")
         return False
-    if not verify_password(password, user_dict["password"]):
-        return False
-    return User(**user_dict)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
