@@ -6,6 +6,9 @@ class UserBase(BaseModel):
     is_admin: bool = False
     disabled: Optional[bool] = False
 
+class User(UserBase):
+    pass
+
 class UserInDB(UserBase):
     hashed_password: str
 
