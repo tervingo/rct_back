@@ -275,7 +275,8 @@ async def remove_user(
 # Script para crear el primer usuario admin
 @app.post("/initial-setup")
 async def initial_setup():
-    db = await get_database()
+    db = get_database()  # Ya no necesita await
+    
     # Verificar si ya existe un usuario admin
     admin_exists = await db["users"].find_one({"username": "admin"})
     if admin_exists:
