@@ -24,9 +24,11 @@ from auth import (
     fake_users_db,
     UserInDB,
     create_user,
-    delete_user
+    delete_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES
 )
 from database import get_database
+from models.user import UserCreate
 
 app = FastAPI()
 
