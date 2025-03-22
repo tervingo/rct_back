@@ -75,16 +75,16 @@ async def authenticate_user(username: str, password: str):
     if not verify_password(password, user_dict["hashed_password"]):
         return False
     
-    # Crear un diccionario con solo los campos que necesitamos
-    user_data = {
-        "username": user_dict["username"],
-        "is_admin": user_dict.get("is_admin", False),
-        "disabled": user_dict.get("disabled", False),
-        "hashed_password": user_dict["hashed_password"]
-    }
-    print("User data before creating object:", user_data)  # Log para depuración
+    # Crear el objeto UserInDB con los campos exactos
+    user = UserInDB(
+        username=user_dict["username"],
+        is_admin=user_dict.get("is_admin", False),
+        disabled=user_dict.get("disabled", False),
+        hashed_password=user_dict["hashed_password"]
+    )
     
-    return UserInDB(**user_data)
+    print("Created UserInDB object:", user.model_dump())  # Log para depuración
+    return user
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -105,7 +105,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
-        is_admin: bool = payload.get("is_admin", False)
         if username is None:
             raise credentials_exception
     except JWTError:
@@ -115,13 +114,18 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     user_dict = await db["users"].find_one({"username": username})
     if user_dict is None:
         raise credentials_exception
+
+    print("User dict from DB:", user_dict)  # Log para depuración
     
-    # Usar los valores del token JWT
-    return User(
-        username=username,
-        is_admin=is_admin,
+    # Crear el objeto User con los campos exactos que necesitamos
+    user = User(
+        username=user_dict["username"],
+        is_admin=user_dict.get("is_admin", False),
         disabled=user_dict.get("disabled", False)
     )
+    
+    print("Created User object:", user.model_dump())  # Log para depuración
+    return user
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)):
     if current_user.disabled:

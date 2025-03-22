@@ -251,7 +251,7 @@ async def upload_image(file: UploadFile = File(...)):
 # Endpoint para obtener todos los usuarios
 @app.get("/users/", response_model=list[User])
 async def get_users(current_user: User = Depends(get_current_active_user)):
-    print("Current user:", current_user.model_dump())  # Log para depuración
+    print("Current user in get_users:", current_user.model_dump())  # Log para depuración
     
     if not current_user.is_admin:
         raise HTTPException(
@@ -261,13 +261,18 @@ async def get_users(current_user: User = Depends(get_current_active_user)):
     
     db = get_database()
     users = await db["users"].find().to_list(length=100)
-    return [
+    
+    # Convertir los documentos de MongoDB a objetos User
+    user_list = [
         User(
             username=user["username"],
             is_admin=user.get("is_admin", False),
             disabled=user.get("disabled", False)
         ) for user in users
     ]
+    
+    print("User list:", [user.model_dump() for user in user_list])  # Log para depuración
+    return user_list
 
 # Endpoint para crear un nuevo usuario
 @app.post("/users/", response_model=User)
@@ -275,7 +280,7 @@ async def create_new_user(
     user_create: UserCreate,
     current_user: User = Depends(get_current_active_user)
 ):
-    print("Current user:", current_user.model_dump())  # Log para depuración
+    print("Current user in create_new_user:", current_user.model_dump())  # Log para depuración
     
     if not current_user.is_admin:
         raise HTTPException(
@@ -295,19 +300,19 @@ async def create_new_user(
     
     # Crear el nuevo usuario
     hashed_password = get_password_hash(user_create.password)
-    new_user = {
+    new_user_dict = {
         "username": user_create.username,
         "hashed_password": hashed_password,
         "is_admin": user_create.is_admin,
         "disabled": False
     }
     
-    await db["users"].insert_one(new_user)
+    await db["users"].insert_one(new_user_dict)
     
     return User(
-        username=new_user["username"],
-        is_admin=new_user["is_admin"],
-        disabled=new_user["disabled"]
+        username=new_user_dict["username"],
+        is_admin=new_user_dict["is_admin"],
+        disabled=new_user_dict["disabled"]
     )
 
 # Endpoint para eliminar un usuario

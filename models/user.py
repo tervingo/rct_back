@@ -1,21 +1,14 @@
-from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-class UserBase(BaseModel):
+class User(BaseModel):
     username: str
-    is_admin: bool = Field(default=False)
-    disabled: bool = Field(default=False)
+    is_admin: bool
+    disabled: bool
 
-    class Config:
-        from_attributes = True
-
-class User(UserBase):
-    pass
-
-class UserInDB(UserBase):
+class UserInDB(User):
     hashed_password: str
 
 class UserCreate(BaseModel):
     username: str
     password: str
-    is_admin: bool = Field(default=False)
+    is_admin: bool = False
