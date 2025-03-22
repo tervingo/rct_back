@@ -75,12 +75,12 @@ async def authenticate_user(username: str, password: str):
     if not verify_password(password, user_dict["hashed_password"]):
         return False
     
-    # Crear el objeto UserInDB con todos los campos necesarios
+    # Crear el objeto UserInDB con los campos exactos
     user = UserInDB(
         username=user_dict["username"],
-        hashed_password=user_dict["hashed_password"],
         is_admin=user_dict.get("is_admin", False),
-        disabled=user_dict.get("disabled", False)
+        disabled=user_dict.get("disabled", False),
+        hashed_password=user_dict["hashed_password"]
     )
     print("Created UserInDB object:", user.model_dump())  # Log para depuración
     return user
