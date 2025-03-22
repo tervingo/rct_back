@@ -75,15 +75,16 @@ async def authenticate_user(username: str, password: str):
     if not verify_password(password, user_dict["hashed_password"]):
         return False
     
-    # Crear el objeto UserInDB con los campos exactos
-    user = UserInDB(
-        username=user_dict["username"],
-        is_admin=user_dict.get("is_admin", False),
-        disabled=user_dict.get("disabled", False),
-        hashed_password=user_dict["hashed_password"]
-    )
-    print("Created UserInDB object:", user.model_dump())  # Log para depuración
-    return user
+    # Crear un diccionario con solo los campos que necesitamos
+    user_data = {
+        "username": user_dict["username"],
+        "is_admin": user_dict.get("is_admin", False),
+        "disabled": user_dict.get("disabled", False),
+        "hashed_password": user_dict["hashed_password"]
+    }
+    print("User data before creating object:", user_data)  # Log para depuración
+    
+    return UserInDB(**user_data)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
