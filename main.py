@@ -251,7 +251,8 @@ async def upload_image(file: UploadFile = File(...)):
 # Endpoint para obtener todos los usuarios
 @app.get("/users/", response_model=list[User])
 async def get_users(current_user: User = Depends(get_current_active_user)):
-    # Verificar si el usuario es admin
+    print("Current user:", current_user.model_dump())  # Log para depuración
+    
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -274,7 +275,8 @@ async def create_new_user(
     user_create: UserCreate,
     current_user: User = Depends(get_current_active_user)
 ):
-    # Verificar si el usuario es admin
+    print("Current user:", current_user.model_dump())  # Log para depuración
+    
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -314,14 +316,14 @@ async def delete_user(
     username: str,
     current_user: User = Depends(get_current_active_user)
 ):
-    # Verificar si el usuario es admin
+    print("Current user:", current_user.model_dump())  # Log para depuración
+    
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permisos para eliminar usuarios"
         )
     
-    # No permitir eliminar al usuario admin
     if username == "admin":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
