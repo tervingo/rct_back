@@ -157,3 +157,18 @@ async def delete_user(username: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
     return {"detail": "User deleted"}
+
+async def is_admin(token: str = Depends(oauth2_scheme)) -> bool:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        is_admin = payload.get("is_admin", False)
+        return is_admin
+    except JWTError:
+        return False
+
+async def admin_required(is_admin_user: bool = Depends(is_admin)):
+    if not is_admin_user:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requieren privilegios de administrador"
+        )

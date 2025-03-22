@@ -26,11 +26,14 @@ from auth import (
     create_user,
     delete_user,
     ACCESS_TOKEN_EXPIRE_MINUTES,
-    get_password_hash
+    get_password_hash,
+    admin_required,
+    verify_password
 )
 from database import get_database, verify_connection
 from models.user import UserCreate
 import logging
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 app = FastAPI()
 
@@ -76,8 +79,10 @@ async def startup_db_client():
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends()
 ):
-    user = await authenticate_user(form_data.username, form_data.password)
-    if not user:
+    db = get_database()
+    user_dict = await db["users"].find_one({"username": form_data.username})
+    
+    if not user_dict or not verify_password(form_data.password, user_dict["hashed_password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -87,8 +92,8 @@ async def login_for_access_token(
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={
-            "sub": user.username,
-            "is_admin": True if user.username == "admin" else False  # Forzar is_admin para el usuario admin
+            "sub": user_dict["username"],
+            "is_admin": user_dict.get("is_admin", False)
         },
         expires_delta=access_token_expires
     )
@@ -248,48 +253,25 @@ async def upload_image(file: UploadFile = File(...)):
         print(f"Error uploading image: {str(e)}")  # Para debugging
         raise HTTPException(status_code=500, detail=str(e))
 
-# Endpoint para obtener todos los usuarios
-@app.get("/users/", response_model=list[User])
-async def get_users(current_user: User = Depends(get_current_active_user)):
-    print("Current user in get_users:", current_user.model_dump())  # Log para depuración
-    
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permisos para ver usuarios"
-        )
-    
-    db = get_database()
+@app.get("/users/")
+async def get_users(
+    _: None = Depends(admin_required),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
     users = await db["users"].find().to_list(length=100)
-    
-    # Convertir los documentos de MongoDB a objetos User
-    user_list = [
-        User(
-            username=user["username"],
-            is_admin=user.get("is_admin", False),
-            disabled=user.get("disabled", False)
-        ) for user in users
-    ]
-    
-    print("User list:", [user.model_dump() for user in user_list])  # Log para depuración
-    return user_list
+    # Eliminar el campo hashed_password antes de devolver los usuarios
+    return [{
+        "username": user["username"],
+        "is_admin": user.get("is_admin", False),
+        "disabled": user.get("disabled", False)
+    } for user in users]
 
-# Endpoint para crear un nuevo usuario
-@app.post("/users/", response_model=User)
+@app.post("/users/")
 async def create_new_user(
     user_create: UserCreate,
-    current_user: User = Depends(get_current_active_user)
+    _: None = Depends(admin_required),
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    print("Current user in create_new_user:", current_user.model_dump())  # Log para depuración
-    
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permisos para crear usuarios"
-        )
-    
-    db = get_database()
-    
     # Verificar si el usuario ya existe
     existing_user = await db["users"].find_one({"username": user_create.username})
     if existing_user:
@@ -300,42 +282,35 @@ async def create_new_user(
     
     # Crear el nuevo usuario
     hashed_password = get_password_hash(user_create.password)
-    new_user_dict = {
+    new_user = {
         "username": user_create.username,
         "hashed_password": hashed_password,
         "is_admin": user_create.is_admin,
         "disabled": False
     }
     
-    await db["users"].insert_one(new_user_dict)
+    await db["users"].insert_one(new_user)
     
-    return User(
-        username=new_user_dict["username"],
-        is_admin=new_user_dict["is_admin"],
-        disabled=new_user_dict["disabled"]
-    )
+    # Devolver el usuario sin el hashed_password
+    return {
+        "username": new_user["username"],
+        "is_admin": new_user["is_admin"],
+        "disabled": new_user["disabled"]
+    }
 
-# Endpoint para eliminar un usuario
 @app.delete("/users/{username}")
 async def delete_user(
     username: str,
-    current_user: User = Depends(get_current_active_user)
+    _: None = Depends(admin_required),
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    print("Current user:", current_user.model_dump())  # Log para depuración
-    
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permisos para eliminar usuarios"
-        )
-    
+    # No permitir eliminar al usuario admin
     if username == "admin":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No se puede eliminar al usuario admin"
         )
     
-    db = get_database()
     result = await db["users"].delete_one({"username": username})
     
     if result.deleted_count == 0:
