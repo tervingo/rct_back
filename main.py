@@ -248,30 +248,96 @@ async def upload_image(file: UploadFile = File(...)):
         print(f"Error uploading image: {str(e)}")  # Para debugging
         raise HTTPException(status_code=500, detail=str(e))
 
-# Endpoints de administración de usuarios
+# Endpoint para obtener todos los usuarios
+@app.get("/users/", response_model=list[User])
+async def get_users(current_user: User = Depends(get_current_active_user)):
+    # Verificar si el usuario es admin
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para ver usuarios"
+        )
+    
+    db = get_database()
+    users = await db["users"].find().to_list(length=100)
+    return [
+        User(
+            username=user["username"],
+            is_admin=user.get("is_admin", False),
+            disabled=user.get("disabled", False)
+        ) for user in users
+    ]
+
+# Endpoint para crear un nuevo usuario
 @app.post("/users/", response_model=User)
 async def create_new_user(
-    user: UserCreate,
-    current_user: User = Depends(get_current_user)
+    user_create: UserCreate,
+    current_user: User = Depends(get_current_active_user)
 ):
+    # Verificar si el usuario es admin
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough privileges"
+            detail="No tienes permisos para crear usuarios"
         )
-    return await create_user(user)
+    
+    db = get_database()
+    
+    # Verificar si el usuario ya existe
+    existing_user = await db["users"].find_one({"username": user_create.username})
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El usuario ya existe"
+        )
+    
+    # Crear el nuevo usuario
+    hashed_password = get_password_hash(user_create.password)
+    new_user = {
+        "username": user_create.username,
+        "hashed_password": hashed_password,
+        "is_admin": user_create.is_admin,
+        "disabled": False
+    }
+    
+    await db["users"].insert_one(new_user)
+    
+    return User(
+        username=new_user["username"],
+        is_admin=new_user["is_admin"],
+        disabled=new_user["disabled"]
+    )
 
+# Endpoint para eliminar un usuario
 @app.delete("/users/{username}")
-async def remove_user(
+async def delete_user(
     username: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ):
+    # Verificar si el usuario es admin
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough privileges"
+            detail="No tienes permisos para eliminar usuarios"
         )
-    return await delete_user(username)
+    
+    # No permitir eliminar al usuario admin
+    if username == "admin":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede eliminar al usuario admin"
+        )
+    
+    db = get_database()
+    result = await db["users"].delete_one({"username": username})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    return {"message": "Usuario eliminado correctamente"}
 
 # Script para crear el primer usuario admin
 @app.post("/initial-setup")

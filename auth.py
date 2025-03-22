@@ -115,9 +115,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     if user_dict is None:
         raise credentials_exception
     
-    return UserInDB(
+    return User(
         username=user_dict["username"],
-        hashed_password=user_dict["hashed_password"],
         is_admin=user_dict.get("is_admin", False),
         disabled=user_dict.get("disabled", False)
     )
