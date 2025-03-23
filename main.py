@@ -223,34 +223,14 @@ async def delete_tag(tag: str):
 @app.post("/upload-image/")
 async def upload_image(file: UploadFile = File(...)):
     try:
-        # Validar el tipo de archivo
-        if not file.content_type.startswith('image/'):
-            raise HTTPException(
-                status_code=400, 
-                detail="El archivo debe ser una imagen"
-            )
+        # Subir imagen a Cloudinary
+        result = cloudinary.uploader.upload(file.file)
+        print("Resultado de Cloudinary:", result)  # Debug
         
-        contents = await file.read()
-        
-        # Subir a Cloudinary en la carpeta 'recipes'
-        upload_result = cloudinary.uploader.upload(
-            contents,
-            folder="recipes",  # Todas las imágenes irán a la carpeta 'recipes'
-            resource_type="auto",
-            # Opciones adicionales para optimización
-            transformation=[
-                {
-                    'width': 1200,  # Ancho máximo
-                    'crop': 'limit'  # Mantiene la proporción
-                }
-            ],
-            quality='auto:good',  # Optimización automática de calidad
-            fetch_format='auto'  # Mejor formato según el navegador
-        )
-        
-        return {"image_path": upload_result["secure_url"]}
+        # Devolver la URL de la imagen
+        return {"url": result["secure_url"]}
     except Exception as e:
-        print(f"Error uploading image: {str(e)}")  # Para debugging
+        print("Error al subir imagen:", str(e))  # Debug
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/users/")
@@ -345,3 +325,14 @@ async def initial_setup():
     
     await db["users"].insert_one(new_admin)
     return {"message": "Admin user created successfully"}
+
+@app.post("/recipes/")
+async def create_recipe(recipe: Recipe):
+    db = get_database()
+    recipe_dict = recipe.model_dump()
+    print("Datos de la receta a guardar:", recipe_dict)  # Debug
+    
+    result = await db["recipes"].insert_one(recipe_dict)
+    created_recipe = await db["recipes"].find_one({"_id": result.inserted_id})
+    
+    return created_recipe
