@@ -47,6 +47,7 @@ app.add_middleware(
         "https://recetasdelgrillo.netlify.app",
         "https://recetasdepili.com",
         "https://www.recetasdepili.com",
+        "https://lasrecetasdepili.netlify.app",
         "http://localhost:3000",
         "http://localhost:3001",
     ],
