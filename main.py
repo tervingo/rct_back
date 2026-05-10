@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, status
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timedelta
@@ -45,7 +45,10 @@ app.add_middleware(
         "https://www.recetasdelgrillo.com",
         "https://www.entrefogones.com",
         "https://recetasdelgrillo.netlify.app",
-        "http://localhost:3000",  # Para desarrollo local
+        "https://recetasdepili.com",
+        "https://www.recetasdepili.com",
+        "http://localhost:3000",
+        "http://localhost:3001",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -124,11 +127,11 @@ async def create_recipe(recipe: RecipeCreate, current_user: User = Depends(get_c
     return Recipe(**created_recipe)
 
 @app.get("/recipes/", response_model=List[Recipe])
-async def get_recipes():
+async def get_recipes(app_id: str = Query(default="recetarium")):
+    query = {"$or": [{"app_id": app_id}, {"app_id": {"$exists": False}}]} if app_id == "recetarium" else {"app_id": app_id}
     recipes = []
-    async for recipe in db.recetas.find():
+    async for recipe in db.recetas.find(query):
         recipe["id"] = str(recipe.pop("_id"))
-        # Añadir metadata por defecto si no existe
         if "metadata" not in recipe:
             recipe["metadata"] = {
                 "author": "unknown",
@@ -137,6 +140,8 @@ async def get_recipes():
                 "rating": None,
                 "reviews_count": 0
             }
+        if "app_id" not in recipe:
+            recipe["app_id"] = "recetarium"
         recipes.append(Recipe(**recipe))
     return recipes
 
@@ -146,7 +151,6 @@ async def get_recipe(recipe_id: str):
     if recipe is None:
         raise HTTPException(status_code=404, detail="Recipe not found")
     recipe["id"] = str(recipe.pop("_id"))
-    # Añadir metadata por defecto si no existe
     if "metadata" not in recipe:
         recipe["metadata"] = {
             "author": "unknown",
@@ -155,6 +159,8 @@ async def get_recipe(recipe_id: str):
             "rating": None,
             "reviews_count": 0
         }
+    if "app_id" not in recipe:
+        recipe["app_id"] = "recetarium"
     return Recipe(**recipe)
 
 @app.put("/recipes/{recipe_id}", response_model=Recipe)
@@ -204,22 +210,18 @@ async def delete_recipe(recipe_id: str, current_user: User = Depends(get_current
 
 # Endpoint para obtener todas las etiquetas existentes
 @app.get("/tags/", response_model=List[str])
-async def get_tags():
-    # Obtener todas las etiquetas únicas de todas las recetas
+async def get_tags(app_id: str = Query(default="recetarium")):
+    query = {"$or": [{"app_id": app_id}, {"app_id": {"$exists": False}}]} if app_id == "recetarium" else {"app_id": app_id}
     tags = set()
-    async for recipe in db.recetas.find():
+    async for recipe in db.recetas.find(query):
         if "tags" in recipe:
             tags.update(recipe["tags"])
     return sorted(list(tags))
 
-# Endpoint para eliminar una etiqueta
 @app.delete("/tags/{tag}")
-async def delete_tag(tag: str):
-    # Eliminar la etiqueta de todas las recetas que la usan
-    await db.recetas.update_many(
-        {"tags": tag},
-        {"$pull": {"tags": tag}}
-    )
+async def delete_tag(tag: str, app_id: str = Query(default="recetarium")):
+    query = {"tags": tag, "$or": [{"app_id": app_id}, {"app_id": {"$exists": False}}]} if app_id == "recetarium" else {"tags": tag, "app_id": app_id}
+    await db.recetas.update_many(query, {"$pull": {"tags": tag}})
     return {"message": f"Etiqueta '{tag}' eliminada correctamente"}
 
 @app.post("/upload-image/")

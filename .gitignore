@@ -7,3 +7,4 @@ __pycache__
 .env
 test_auth.py
 generate_hash.py
+*.tmp.*

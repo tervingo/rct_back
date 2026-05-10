@@ -44,6 +44,7 @@ class RecipeBase(BaseModel):
     category: RecipeCategory
     tags: Set[str]
     image_path: Optional[str] = None
+    app_id: str = "recetarium"
 
     model_config = {
         "json_schema_extra": {
